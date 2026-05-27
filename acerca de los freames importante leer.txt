@@ -1,0 +1,4 @@
+acerca de los freames 
+1- el jump death ese mismo frame también se va a utilizar cuando lo impacte la flecha o la pala
+2- el deathhole se va a utilizar para cuando el personaje toque el hoyo 
+3- la intención de que algunos freames de muerte están largos es porque la intecion es de que cuando el personaje toque el objeto con el cual va a morir este como que tenga un efecto de arrastre a que me refiero con esto de que cuando al personaje lo impacte en ese momento mi intecion es que no muera en ese momento si no que cuando el objeto lo toque este como que haga un tipo de agonizacion como una especie de jetpack joroide y que aparezca el game over después de que acabe el freame cuando ya  ya es decisión del programador si cuando el objeto que impacte al personaje siga corriendo el fondo o se detenga el escenario y haga ese único freame
