@@ -1,6 +1,8 @@
 package mygame;
 
 import com.jme3.app.SimpleApplication;
+import com.jme3.font.BitmapFont;
+import com.jme3.font.BitmapText;
 import com.jme3.material.Material;
 import com.jme3.material.RenderState.BlendMode;
 import com.jme3.renderer.queue.RenderQueue;
@@ -14,7 +16,7 @@ import java.util.ArrayList;
 
 public class Main extends SimpleApplication {
 
-    private Geometry fondo1, fondo2, fondo3;
+    private Geometry[] fondos = new Geometry[10];
     private Geometry pantallaStart, pantallaGameOver;
 
     private float velocidad = 5f;          
@@ -30,6 +32,11 @@ public class Main extends SimpleApplication {
     
     private boolean ultimoFueAereo = false;
 
+    // --- NUEVAS VARIABLES PARA EL SCORE ---
+    private int score = 0;
+    private float timerScore = 0f;
+    private BitmapText textoScore;
+
     public static void main(String[] args) {
         Main app = new Main();
         app.start();
@@ -39,17 +46,34 @@ public class Main extends SimpleApplication {
     public void simpleInitApp() {
         flyCam.setEnabled(false);
 
-        fondo1 = crearFondo("Textures/Backgrounds/fondo1.png", -10, -5f);
-        fondo2 = crearFondo("Textures/Backgrounds/fondo2.png", 10, -5f);
-        fondo3 = crearFondo("Textures/Backgrounds/fondo3.png", 30, -5f);
+        // Carga de los 10 fondos
+        fondos[0] = crearFondo("Textures/Backgrounds/fondo1.png", -10f, -5f);
+        fondos[1] = crearFondo("Textures/Backgrounds/fondo2.png",  10f, -5f);
+        fondos[2] = crearFondo("Textures/Backgrounds/fondo3.png",  30f, -5f);
+        fondos[3] = crearFondo("Textures/Backgrounds/fondo4.png",  50f, -5f);
+        fondos[4] = crearFondo("Textures/Backgrounds/fondo5.png",  70f, -5f);
+        fondos[5] = crearFondo("Textures/Backgrounds/fondo6.png",  90f, -5f);
+        fondos[6] = crearFondo("Textures/Backgrounds/fondo7.png",  110f, -5f);
+        fondos[7] = crearFondo("Textures/Backgrounds/fondo8.png",  130f, -5f);
+        fondos[8] = crearFondo("Textures/Backgrounds/fondo9.png",  150f, -5f);
+        fondos[9] = crearFondo("Textures/Backgrounds/fondo10.png", 170f, -5f);
 
-        rootNode.attachChild(fondo1);
-        rootNode.attachChild(fondo2);
-        rootNode.attachChild(fondo3);
+        for (Geometry f : fondos) {
+            rootNode.attachChild(f);
+        }
 
         pantallaStart = crearPantalla("Textures/Backgrounds/start.png");
         pantallaGameOver = crearPantalla("Textures/Backgrounds/gameover.png");
         guiNode.attachChild(pantallaStart);
+
+        // --- INTERFAZ DEL SCORE ---
+        BitmapFont fuente = assetManager.loadFont("Interface/Fonts/Default.fnt");
+        textoScore = new BitmapText(fuente, false);
+        textoScore.setSize(30f); // Tamaño de la letra
+        textoScore.setText("SCORE: 0");
+        // Lo posicionamos arriba a la izquierda de la pantalla
+        textoScore.setLocalTranslation(20f, cam.getHeight() - 20f, 0f);
+        guiNode.attachChild(textoScore);
 
         configurarTeclas();
     }
@@ -80,6 +104,9 @@ public class Main extends SimpleApplication {
         inputManager.addMapping("IniciarJuego", new KeyTrigger(KeyInput.KEY_SPACE));
         inputManager.addMapping("ReiniciarJuego", new KeyTrigger(KeyInput.KEY_RETURN)); 
         
+        // TECLA DE PRUEBA DE MUERTE: Presiona la 'K' para probar cómo se congela todo y sale el Game Over
+        inputManager.addMapping("SimularMuerte", new KeyTrigger(KeyInput.KEY_K));
+        
         inputManager.addListener(new ActionListener() {
             @Override
             public void onAction(String name, boolean isPressed, float tpf) {
@@ -88,11 +115,17 @@ public class Main extends SimpleApplication {
                     guiNode.detachChild(pantallaStart); 
                 }
                 
+                // --- REINICIO TOTAL DESDE CERO ---
                 if (name.equals("ReiniciarJuego") && !isPressed && esGameOver) {
                     guiNode.detachChild(pantallaGameOver);
                     velocidad = 5f; 
                     esGameOver = false; 
                     juegoIniciado = true; 
+                    
+                    // Reset de Score
+                    score = 0;
+                    timerScore = 0f;
+                    textoScore.setText("SCORE: 0");
                     
                     for (Geometry obs : listaObstaculos) {
                         obs.removeFromParent();
@@ -102,12 +135,24 @@ public class Main extends SimpleApplication {
                     tiempoParaSiguiente = 1f;
                     ultimoFueAereo = false;
                 }
+                
+                // Activar la muerte al presionar K (Quítalo cuando tu compañero ponga las colisiones reales)
+                if (name.equals("SimularMuerte") && !isPressed && juegoIniciado && !esGameOver) {
+                    activarGameOver();
+                }
             }
-        }, "IniciarJuego", "ReiniciarJuego");
+        }, "IniciarJuego", "ReiniciarJuego", "SimularMuerte");
+    }
+
+    // --- FUNCIÓN PARA CONGELAR EL JUEGO AL MORIR ---
+    public void activarGameOver() {
+        esGameOver = true;
+        guiNode.attachChild(pantallaGameOver);
     }
 
     @Override
     public void simpleUpdate(float tpf) {
+        // Al retornar aquí, si 'esGameOver' es verdadero, todo se congela automáticamente
         if (!juegoIniciado || esGameOver) {
             return; 
         }
@@ -116,9 +161,17 @@ public class Main extends SimpleApplication {
             velocidad += aceleracion * tpf;
         }
 
-        moverFondo(fondo1, tpf);
-        moverFondo(fondo2, tpf);
-        moverFondo(fondo3, tpf);
+        for (Geometry f : fondos) {
+            moverFondo(f, tpf);
+        }
+        
+        // --- LÓGICA DE INCREMENTO DE SCORE ---
+        timerScore += tpf;
+        if (timerScore >= 0.1f) { // Cada 0.1 segundos aumenta el puntaje
+            score += 1;
+            textoScore.setText("SCORE: " + score);
+            timerScore = 0f;
+        }
         
         timerObstaculo += tpf;
         if (timerObstaculo >= tiempoParaSiguiente) {
@@ -132,8 +185,9 @@ public class Main extends SimpleApplication {
     private void moverFondo(Geometry fondo, float tpf) {
         float currentX = fondo.getLocalTranslation().x;
         currentX -= velocidad * tpf;
+        
         if (currentX <= -30f) {
-            currentX += 60f;
+            currentX += 200f; 
         }
         fondo.setLocalTranslation(currentX, fondo.getLocalTranslation().y, -5f);
     }
@@ -141,9 +195,8 @@ public class Main extends SimpleApplication {
     private void generarObstaculoRandom() {
         int tipo;
         
-        
         if (ultimoFueAereo) {
-            tipo = (int)(Math.random() * 2);
+            tipo = (int)(Math.random() * 2); 
         } else {
             tipo = (int)(Math.random() * 4); 
         }
@@ -155,12 +208,12 @@ public class Main extends SimpleApplication {
         switch (tipo) {
             case 0: 
                 rutaTextura = "Textures/obstacles/hole.png"; 
-                posicionY = -4.5f; 
+                posicionY = -3.2f; 
                 esAereo = false; 
                 break;
             case 1: 
                 rutaTextura = "Textures/obstacles/tumba.png"; 
-                posicionY = -4.0f; 
+                posicionY = -3.03f; 
                 esAereo = false; 
                 break;
             case 2: 
@@ -175,15 +228,13 @@ public class Main extends SimpleApplication {
                 break;
         }
 
-       
         if (!esAereo) {
-            
             tiempoParaSiguiente = 1.8f + (float)(Math.random() * 1.0f);
         } else {
             tiempoParaSiguiente = 1.0f + (float)(Math.random() * 0.8f);
         }
         
-        ultimoFueAereo = esAereo;
+        ultimoFueAereo = esAereo; 
 
         Quad quad = new Quad(2f, 2f);
         Geometry obstaculo = new Geometry("Obstaculo", quad);
@@ -193,7 +244,7 @@ public class Main extends SimpleApplication {
         mat.setTexture("ColorMap", tex);
         
         mat.getAdditionalRenderState().setBlendMode(BlendMode.Alpha);
-        mat.setFloat("AlphaDiscardThreshold", 0.1f);
+        mat.setFloat("AlphaDiscardThreshold", 0.1f); 
         obstaculo.setMaterial(mat);
         obstaculo.setQueueBucket(RenderQueue.Bucket.Transparent); 
 
